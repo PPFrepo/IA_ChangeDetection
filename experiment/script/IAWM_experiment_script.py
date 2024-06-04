@@ -171,9 +171,10 @@ repetitionsExp = 1
 repetitionsPractise = 1
 
 # {} because we will use .format() for these fields later on
-data_folder_path = "data/sub-{ID}"
+data_folder_path = "../data/sub-{ID}"
 data_file_name = data_folder_path+"/sub-{ID}_{dataType}"
 instruction_path = "instructions/"
+stim_path = '../stimuli_tmp/stimuli/'
 
 screenResolution = (1920, 1080)
 imageSize = [0.95, 0.95]
@@ -185,6 +186,9 @@ breakTime = 60.0  # Time in seconds. Duration of the break.
 breakTrial = 60  # Number of trials after which to make a break
 waitBetweenItems = 0.2  # Seconds
 
+imagePosOccl = [0, 0]
+imagePosScene = [0, 0]
+
 textHeight = 0.08  # 50
 textWrap = 0.8  # 1.5  # 1500
 
@@ -192,7 +196,7 @@ textWrap = 0.8  # 1.5  # 1500
 
 font_name = 'Arial'  # Slider has difficulties with some other fonts
 continueKey = ['space']
-responseKeys = [str(num) for num in list(range(1, 10))]
+responseKeys = ['left', 'right']
 
 
 if debug == True:
@@ -204,20 +208,16 @@ if debug == True:
 # GUI (present before defining window, because fullscr prevents interaction with other windows)
 # * makes gui fields mandatory
 exp_info = {
-    'Task*': ['-- select input --', 'sequential', 'side-by-side'],
-    'First question*': ['-- select input --', 'imagine', 'likely'],
     'ID*': '',
     'Age*': '',
     'Gender*': ['-- select input --', 'female', 'male', 'diverse']
 }
 
-infoDlg = gui.DlgFromDict(exp_info, title='IASD '+data.getDateStr(), sortKeys=False)
+infoDlg = gui.DlgFromDict(exp_info, title='IAWM '+data.getDateStr(), sortKeys=False)
 if not infoDlg.OK:  # Stop experiment if participant pressed cancel
     print('Experiment cancelled')
     core.quit()
-elif infoDlg.OK == True and '-- select input --' in [exp_info['Gender*'],  # Check if gender and block order is selected
-                                                     exp_info['First question*'],
-                                                     exp_info['Task*']]:
+elif infoDlg.OK == True and '-- select input --' in [exp_info['Gender*']]:  # Check if gender and block order is selected
     raise ValueError('Experiment stopped. Please fill in all fields.')
 
 # Remove * from dictionary keys
@@ -226,27 +226,9 @@ for key in list(exp_info.keys()):  # Use list to make a copy of the object
 
 exp_info['date'] = data.getDateStr()  # Add a date field to dict
 
-# set visibility fixation cross
-alphaVal = 0
-
 # Set presentation order of blocks
 expBlocks = ['practise', 'experiment']
 
-# Set experiment task
-if exp_info['Task'] == 'sequential':
-    imagePosOccl = [-0.5, 0]
-    imagePosScene = [-0.5, 0]
-    sliderPos = [0.5, 0]
-elif exp_info['Task'] == 'side-by-side':
-    imagePosOccl = [-0.5, 0.5]
-    imagePosScene = [-0.5, -0.5]
-    sliderPos = [0.5, 0]
-
-# Set order of questions
-if exp_info['First question'] == 'imagine':
-    questionOrder = ['imagine', 'likely']
-elif exp_info['First question'] == 'likely':
-    questionOrder = ['likely', 'imagine']
 
 os.mkdir(data_folder_path.format(**exp_info))
 
@@ -291,9 +273,6 @@ exp_handler = data.ExperimentHandler(dataFileName=data_file_name.format(**exp_in
 message = visual.TextStim(win, color='black', text='', font=font_name, height=textHeight, wrapWidth=textWrap)
 # messageResponseScreen = visual.TextStim(win, color='black', text='', font=font_name, pos=(sliderPos[0], 0.4), height=textHeight, wrapWidth=textWrap)
 
-# Create a fixation cross
-fixation_cross = visual.TextStim(win, color=[-1, -1, -1], opacity=alphaVal, text='+', height=textHeight)
-
 
 #%% Instructions
 
@@ -317,25 +296,12 @@ fixation_cross = visual.TextStim(win, color=[-1, -1, -1], opacity=alphaVal, text
 stimulus_occluder = visual.ImageStim(win, pos=imagePosOccl, size=imageSize)
 stimulus_scene = visual.ImageStim(win, pos=imagePosScene, size=imageSize)
 
-scale0 = visual.ImageStim(win,
-                          pos=sliderPos,
-                          image='rating_scale/{}_1.png'.format(questionOrder[0]),
-                          size=imageSize)
-scale1 = visual.ImageStim(win,
-                          pos=sliderPos,
-                          image='rating_scale/{}_2.png'.format(questionOrder[1]),
-                          size=imageSize)
-
 img_name_occluder = ''
 img_name_scene = ''
 
 trialStartFlip = expClock.getTime()
 occluderFlip = expClock.getTime()
 sceneFlip = expClock.getTime()
-rating0lip = expClock.getTime()
-rating1Flip = expClock.getTime()
-item0_rt = expClock.getTime()
-item1_rt = expClock.getTime()
 
 ISI = core.StaticPeriod(win=win, screenHz=screenRefresh)
 
@@ -345,19 +311,16 @@ for block in expBlocks:
                                repetitionsPractise if 'practise' in block else repetitionsExp,
                                method='random')  # Random will block repetitions.
     exp_handler.addLoop(trials)
-    stimulus_path = '../stimuli/stimuli/practise/' if 'practise' in block else '../stimuli/stimuli/'
+    stimulus_path = stim_path+'/practise/' if 'practise' in block else stim_path
 
     if 'practise' in block:
         textMessage('Press space to start practise trials.')
 
     trialNum = 1
-    # win.flip()  # initial flip to be in sync with the monitor in the loop
     for currentTrial in trials:
 
         # Inter stimulus interval
-        fixation_cross.draw()
         win.flip()  # First flip: Send flip to display, but script does not wait until display is updated
-        fixation_cross.draw()
         win.flip()  # Second flip: This flip must wait until the screen finishes updating the previous flip
         trialStartFlip = expClock.getTime()  # Gets the time when the screen was updated with the first flip
 
@@ -365,19 +328,16 @@ for block in expBlocks:
         stimulus_occluder.image = stimulus_path + currentTrial['occluderFile']
         stimulus_scene.image = stimulus_path + currentTrial['fruitFile']
         stimulus_occluder.draw()
-        fixation_cross.draw()  # Second draw on top
         ISI.complete()
 
         # Occluder stimulus
         win.flip()
         stimulus_occluder.draw()
-        fixation_cross.draw()
         win.flip()
         occluderFlip = expClock.getTime()
 
         stimulus_occluder.draw()  # not visible in sequential condition
         stimulus_scene.draw()
-        fixation_cross.draw()
 
         # Deduct small amount of time to account for the time it takes to buffer the images in the code above
         while expClock.getTime() < occluderFlip + occluderDuration - 0.0127:  # 0.0082:
@@ -387,64 +347,23 @@ for block in expBlocks:
         win.flip()
         stimulus_occluder.draw()
         stimulus_scene.draw()
-        fixation_cross.draw()
         win.flip()
         sceneFlip = expClock.getTime()
 
         stimulus_occluder.draw()
         stimulus_scene.draw()
-        scale0.draw()
 
         while expClock.getTime() < sceneFlip + sceneDuration - 0.010:  # 0.0105 # 0.0089:
             pass
 
-        # Rating scale 0
-        win.flip()
-        stimulus_occluder.draw()
-        stimulus_scene.draw()
-        scale0.draw()
-        win.flip()
-        rating0Flip = expClock.getTime()
-
-        resp0 = event.waitKeys(keyList=responseKeys)
-        rating0_rt = expClock.getTime()
-
-        core.wait(waitBetweenItems)
-
-        # Rating scale 1
-        stimulus_occluder.draw()
-        stimulus_scene.draw()
-        scale1.draw()
-        win.flip()
-
-        stimulus_occluder.draw()
-        stimulus_scene.draw()
-        scale1.draw()
-        win.flip()
-        rating1Flip = expClock.getTime()
-
-        resp1 = event.waitKeys(keyList=responseKeys)
-        rating1_rt = expClock.getTime()
-
-        # print((occluderFlip - trialStartFlip) * 1000, (sceneFlip - occluderFlip) * 1000,
-        #       (rating0Flip - sceneFlip) * 1000, questionOrder[0])
-
-
         # Add responses to handler
-        exp_handler.addData('{}_rating'.format(questionOrder[0]), resp0)
-        exp_handler.addData('{}_rating'.format(questionOrder[1]), resp1)
-        exp_handler.addData('{}_time_on_response'.format(questionOrder[0]), rating0_rt-exp_tick_ref)
-        exp_handler.addData('{}_time_on_response'.format(questionOrder[1]), rating1_rt-exp_tick_ref)
-
         exp_handler.addData('trial_start', trialStartFlip-exp_tick_ref)
         exp_handler.addData('time_on_flip_occluder', occluderFlip-exp_tick_ref)
         exp_handler.addData('time_on_flip_scene', sceneFlip-exp_tick_ref)
-        exp_handler.addData('{}_scale_time_on_flip'.format(questionOrder[0]), rating0Flip - exp_tick_ref)
-        exp_handler.addData('{}_scale_time_on_flip'.format(questionOrder[1]), rating1Flip - exp_tick_ref)
 
         exp_handler.addData('block', blockNum)
         exp_handler.addData('trial', trialNum)
-        exp_handler.addData('pressed_multi', True if len(resp0)>1 or len(resp1)>1 else False)
+        # exp_handler.addData('pressed_multi', True if len(resp0)>1 or len(resp1)>1 else False)
 
         exp_handler.nextEntry()
 
@@ -455,9 +374,6 @@ for block in expBlocks:
         if (trialNum % breakTrial == 0) and (trialNum != trials.nTotal):
             takeBreak()
         trialNum += 1
-
-        # fixation_cross.draw()
-        # win.flip()  # Flip to get script in sync with monitor on next trial
 
     if 'practise' in block:
         textMessage('Finished practise trials. \n Press space to start the experiment.')
