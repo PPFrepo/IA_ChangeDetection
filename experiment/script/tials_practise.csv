@@ -1,0 +1,11 @@
+,occluder,number_items,signal,target1,target2,pair,distractor3,distractor4,distractor5,distractor6,target1_scene1_pos,target2_scene1_pos,distractor3_scene1_pos,distractor3_scene2_pos,distractor4_scene1_pos,distractor4_scene2_pos,distractor5_scene1_pos,distractor5_scene2_pos,distractor6_scene1_pos,distractor6_scene2_pos,target1_scene2_pos,target2_scene2_pos
+75,scene,6,noise,avocado,mango,avocado_mango,apple,kiwi,lemon,pear,1.0,6.0,2.0,2.0,7.0,7.0,3.0,3.0,8.0,8.0,1.0,6.0
+68,scene,6,signal,apple,pear,apple_pear,avocado,kiwi,lemon,mango,4.0,8.0,7.0,7.0,6.0,6.0,1.0,1.0,3.0,3.0,8.0,4.0
+0,bubble,6,signal,apple,avocado,apple_avocado,kiwi,lemon,mango,pear,8.0,1.0,5.0,5.0,7.0,7.0,6.0,6.0,2.0,2.0,1.0,8.0
+30,rectangle,6,signal,apple,avocado,apple_avocado,kiwi,lemon,mango,pear,8.0,1.0,5.0,5.0,7.0,7.0,6.0,6.0,2.0,2.0,1.0,8.0
+47,rectangle,6,noise,avocado,pear,avocado_pear,apple,kiwi,lemon,mango,8.0,1.0,6.0,6.0,5.0,5.0,4.0,4.0,2.0,2.0,8.0,1.0
+41,rectangle,6,noise,avocado,kiwi,avocado_kiwi,apple,lemon,mango,pear,1.0,7.0,2.0,2.0,5.0,5.0,3.0,3.0,4.0,4.0,1.0,7.0
+11,bubble,6,noise,avocado,kiwi,avocado_kiwi,apple,lemon,mango,pear,1.0,7.0,2.0,2.0,5.0,5.0,3.0,3.0,4.0,4.0,1.0,7.0
+74,scene,6,signal,avocado,mango,avocado_mango,apple,kiwi,lemon,pear,1.0,6.0,2.0,2.0,7.0,7.0,3.0,3.0,8.0,8.0,6.0,1.0
+43,rectangle,6,noise,avocado,lemon,avocado_lemon,apple,kiwi,mango,pear,1.0,4.0,6.0,6.0,8.0,8.0,7.0,7.0,5.0,5.0,1.0,4.0
+14,bubble,6,signal,avocado,mango,avocado_mango,apple,kiwi,lemon,pear,1.0,6.0,2.0,2.0,7.0,7.0,3.0,3.0,8.0,8.0,6.0,1.0

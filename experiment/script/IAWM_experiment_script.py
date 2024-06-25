@@ -172,19 +172,21 @@ def getrandpos(df, number_positions=8):
     for indx, p in enumerate(pairlist):
         positions = list(range(1,number_positions+1))
         random.shuffle(positions)
-        for num in range(1,7):
+        for num in targ_distr_dict:
             pos_tmp = positions.pop()
 
-            df.loc[df.pair == p, 'pos{posnum}_{sce}'.format(posnum=str(num), sce='scene1')] = pos_tmp  # positions.pop()
+            df.loc[df.pair == p, '{posnum}_{sce}_pos'.format(posnum=str(num), sce='scene1')] = pos_tmp  # positions.pop()
 
             # For scene 2: Add same positions only for distractors
-            if num > number_targets:
-                df.loc[df.pair == p, 'pos{posnum}_{sce}'.format(posnum=str(num),
+            if 'distractor' in num:
+                df.loc[df.pair == p, '{posnum}_{sce}_pos'.format(posnum=str(num),
                                                                 sce='scene2')] = pos_tmp  # positions.pop()
 
     # For scene 2: Swop positions in signal trials, but keep the same as in scene 1 in noise trials
-    df['pos1_scene2'] = np.where(df['signal'] == 'signal', df['pos2_scene1'], df['pos1_scene1'])
-    df['pos2_scene2'] = np.where(df['signal'] == 'signal', df['pos1_scene1'], df['pos2_scene1'])
+    # df['pos1_scene2'] = np.where(df['signal'] == 'signal', df['pos2_scene1'], df['pos1_scene1'])
+    # df['pos2_scene2'] = np.where(df['signal'] == 'signal', df['pos1_scene1'], df['pos2_scene1'])
+    df['target1_scene2_pos'] = np.where(df['signal'] == 'signal', df['target2_scene1_pos'], df['target1_scene1_pos'])
+    df['target2_scene2_pos'] = np.where(df['signal'] == 'signal', df['target1_scene1_pos'], df['target2_scene1_pos'])
 
 
 # %% Set variables
@@ -336,7 +338,8 @@ trialListPractise = trialListExp.sample(n=num_practise).copy()
 
 getrandpos(trialListPractise)
 getrandpos(trialListExp)
-
+# trialListPractise.to_csv('tials_practise.csv')
+# trialListExp.to_csv('trials_exp.csv')
 
 # Instantiate variables to be faster in the loop
 
@@ -396,8 +399,9 @@ for block in expBlocks:
                 stim_scene.alpha_composite(Image.open(stim_path
                                                       + currentTrial[stim_elem]  # Gives a fruit
                                                       + '_'
-                                                      + str(int(currentTrial['pos'+stim_elem[-1]
-                                                                             +'_'+sce_num]))
+                                                      + str(int(currentTrial[stim_elem
+                                                                             +'_'+sce_num
+                                                                             + '_pos']))
                                                       + '.png'))
             stimulus_dict[sce_num].image = stim_scene
 
