@@ -7,13 +7,16 @@ Created on Mon Apr  8 13:17:07 2024
 # Change in instruction text: Wortlaut der Items
 # event.waitKeys() does not wait until button is released
 
+#EDIT
 
 #%%
-
 from psychopy import visual, core, data, gui, logging, event
 import os
 import pandas as pd
+import numpy as np
 import sys
+import random
+from PIL import Image
 
 
 #%% highPriority() function from Hubert Voogd to make timing in PsychoPy more accurate
@@ -162,32 +165,57 @@ def extract_source(functionName, fileName='source_tmp'):
         f.write(inspect.getsource(functionName))
 
 
+def getrandpos(df, number_positions=8):
+    pairlist = list(set(df['pair'])).copy()
+
+    # Shuffle a list of 8 possible positions and distribute over 6 given positions
+    for indx, p in enumerate(pairlist):
+        positions = list(range(1,number_positions+1))
+        random.shuffle(positions)
+        for num in range(1,7):
+            pos_tmp = positions.pop()
+
+            df.loc[df.pair == p, 'pos{posnum}_{sce}'.format(posnum=str(num), sce='scene1')] = pos_tmp  # positions.pop()
+
+            # For scene 2: Add same positions only for distractors
+            if num > number_targets:
+                df.loc[df.pair == p, 'pos{posnum}_{sce}'.format(posnum=str(num),
+                                                                sce='scene2')] = pos_tmp  # positions.pop()
+
+    # For scene 2: Swop positions in signal trials, but keep the same as in scene 1 in noise trials
+    df['pos1_scene2'] = np.where(df['signal'] == 'signal', df['pos2_scene1'], df['pos1_scene1'])
+    df['pos2_scene2'] = np.where(df['signal'] == 'signal', df['pos1_scene1'], df['pos2_scene1'])
+
+
 # %% Set variables
 
-debug = False
+debug = True
 # playInstructions = False
 
 repetitionsExp = 1
 repetitionsPractise = 1
+num_practise = 10
 
 # {} because we will use .format() for these fields later on
 data_folder_path = "../data/sub-{ID}"
 data_file_name = data_folder_path+"/sub-{ID}_{dataType}"
 instruction_path = "instructions/"
-stim_path = '../stimuli_tmp/stimuli/'
+stim_path = '../stimuli/stimuli/'
 
 screenResolution = (1920, 1080)
-imageSize = [0.95, 0.95]
+imageSize = [2,2]#[0.95, 0.95]
 
 ISI_duration = 1.0  # Time in seconds
 occluderDuration = 4.0  # Time in seconds
-sceneDuration = 1.0  # Time in seconds
+scene1Duration = 1.0  # Time in seconds
+scene2Duration = 1.0  # Time in seconds
 breakTime = 60.0  # Time in seconds. Duration of the break.
 breakTrial = 60  # Number of trials after which to make a break
 waitBetweenItems = 0.2  # Seconds
 
-imagePosOccl = [0, 0]
-imagePosScene = [0, 0]
+# imagePosOccl = [0, 0]
+# imagePosScene = [0, 0]
+imagePos = [0, 0]
 
 textHeight = 0.08  # 50
 textWrap = 0.8  # 1.5  # 1500
@@ -197,7 +225,10 @@ textWrap = 0.8  # 1.5  # 1500
 font_name = 'Arial'  # Slider has difficulties with some other fonts
 continueKey = ['space']
 responseKeys = ['left', 'right']
+responseKeysRating = [str(num) for num in list(range(1, 5))]
 
+targ_distr_dict = ['target1', 'target2', 'distractor3', 'distractor4', 'distractor5', 'distractor6']
+number_targets = 2
 
 if debug == True:
     occluderDuration = 1.0
@@ -265,13 +296,19 @@ mouse.setExclusive(True)  # mouse input will be meaningless while this is set to
 # 0 did not work for the ticks. That is why we use responses between 1 and 2.
 # slider = visual.Slider(win, ticks=sliderTicks, labelColor='Black', lineColor='Black', labels=list(sliderTicks),
 #                        granularity=0, font=font_name, size=[textWrap, textHeight], pos=sliderPos, units='norm')
+slider = visual.Slider(win, ticks=[1, 2, 3, 4], labelColor='Black', lineColor='Black', labels=['1 \n guess', 2, 3, '4 \n  certain'],
+                               granularity=4, font=font_name, size=[textWrap, textHeight], units='norm')
 
 # Setup TrialHandler
 exp_handler = data.ExperimentHandler(dataFileName=data_file_name.format(**exp_info, dataType='crashSave'))
 
 # Initialise messages
 message = visual.TextStim(win, color='black', text='', font=font_name, height=textHeight, wrapWidth=textWrap)
-# messageResponseScreen = visual.TextStim(win, color='black', text='', font=font_name, pos=(sliderPos[0], 0.4), height=textHeight, wrapWidth=textWrap)
+messageResponseScreen = visual.TextStim(win, color='black',
+                                        text='Was a scene change present? \n \n no                yes',
+                                        font=font_name, height=textHeight, wrapWidth=textWrap)
+messageCertain = visual.TextStim(win, color='black', text='How certain are you?',
+                                 font=font_name, height=textHeight, wrapWidth=textWrap, pos=(0, 0.2))
 
 
 #%% Instructions
@@ -292,32 +329,53 @@ message = visual.TextStim(win, color='black', text='', font=font_name, height=te
 
 #%% Experiment
 
+trialListExp = pd.read_csv('trialList/trialList_changeDetection.csv')
+
+# Select ramdom sample of trials for practise
+trialListPractise = trialListExp.sample(n=num_practise).copy()
+
+getrandpos(trialListPractise)
+getrandpos(trialListExp)
+
+
 # Instantiate variables to be faster in the loop
-stimulus_occluder = visual.ImageStim(win, pos=imagePosOccl, size=imageSize)
-stimulus_scene = visual.ImageStim(win, pos=imagePosScene, size=imageSize)
+
+stimulus_dict = {}
+for s in targ_distr_dict+['scene1', 'scene2', 'occluder']:
+    stimulus_dict[s] = visual.ImageStim(win, pos=imagePos, size=imageSize)
+
+stim_scene = Image.open(stim_path + 'scene.png')
 
 img_name_occluder = ''
 img_name_scene = ''
 
 trialStartFlip = expClock.getTime()
 occluderFlip = expClock.getTime()
-sceneFlip = expClock.getTime()
+scene1Flip = expClock.getTime()
+scene2Flip = expClock.getTime()
 
 ISI = core.StaticPeriod(win=win, screenHz=screenRefresh)
 
 blockNum = 1
+
 for block in expBlocks:
-    trials = data.TrialHandler('trialList/trialList_IASD_exp1_{}.csv'.format(block),
+
+    trials_current_block = trialListPractise if 'practise' in block else trialListExp
+    file_dict_list = trials_current_block.to_dict('records') # TrialHandler needs a list of dictionaries
+
+    trials = data.TrialHandler(file_dict_list,
                                repetitionsPractise if 'practise' in block else repetitionsExp,
                                method='random')  # Random will block repetitions.
+
     exp_handler.addLoop(trials)
-    stimulus_path = stim_path+'/practise/' if 'practise' in block else stim_path
+    # stimulus_path = stim_path+'/practise/' if 'practise' in block else stim_path
 
     if 'practise' in block:
         textMessage('Press space to start practise trials.')
 
     trialNum = 1
     for currentTrial in trials:
+        print(currentTrial)
 
         # Inter stimulus interval
         win.flip()  # First flip: Send flip to display, but script does not wait until display is updated
@@ -325,41 +383,86 @@ for block in expBlocks:
         trialStartFlip = expClock.getTime()  # Gets the time when the screen was updated with the first flip
 
         ISI.start(ISI_duration-0.006)
-        stimulus_occluder.image = stimulus_path + currentTrial['occluderFile']
-        stimulus_scene.image = stimulus_path + currentTrial['fruitFile']
-        stimulus_occluder.draw()
-        ISI.complete()
+
+        stimulus_dict['occluder'].image = stim_path+'occluder_{}.png'.format(currentTrial['occluder']) if 'scene' not in currentTrial['occluder'] else stim_path+'scene.png'
+
+        for sce_num in ['scene1', 'scene2']:
+            stim_scene = Image.open(stim_path + 'scene.png')
+            for stim_elem in targ_distr_dict:
+
+                # The positions stored under the position column are randomised.
+                # We can therefore use the target/distractor number to put them in corresponding positions:
+                # target1 in pos1, target2 in pos2, distractor3 in pos3, ...
+                stim_scene.alpha_composite(Image.open(stim_path
+                                                      + currentTrial[stim_elem]  # Gives a fruit
+                                                      + '_'
+                                                      + str(int(currentTrial['pos'+stim_elem[-1]
+                                                                             +'_'+sce_num]))
+                                                      + '.png'))
+            stimulus_dict[sce_num].image = stim_scene
+
+        stimulus_dict['scene1'].draw()
+
+        ISI_success = ISI.complete()
+        print(ISI_success)
+
+        # Scene 1
+        win.flip()
+        stimulus_dict['scene1'].draw()
+        win.flip()
+        scene1Flip = expClock.getTime()
+
+        stimulus_dict['occluder'].draw()
+
+        while expClock.getTime() < scene1Flip + scene1Duration - 0.010:  # 0.0105 # 0.0089:
+            pass
 
         # Occluder stimulus
         win.flip()
-        stimulus_occluder.draw()
+        stimulus_dict['occluder'].draw()
         win.flip()
         occluderFlip = expClock.getTime()
 
-        stimulus_occluder.draw()  # not visible in sequential condition
-        stimulus_scene.draw()
+        stimulus_dict['scene2'].draw()
 
         # Deduct small amount of time to account for the time it takes to buffer the images in the code above
         while expClock.getTime() < occluderFlip + occluderDuration - 0.0127:  # 0.0082:
             pass
 
-        # Scene stimulus
+        # Scene 2
         win.flip()
-        stimulus_occluder.draw()
-        stimulus_scene.draw()
+        stimulus_dict['scene2'].draw()
         win.flip()
-        sceneFlip = expClock.getTime()
+        scene2Flip = expClock.getTime()
 
-        stimulus_occluder.draw()
-        stimulus_scene.draw()
+        messageResponseScreen.draw()
 
-        while expClock.getTime() < sceneFlip + sceneDuration - 0.010:  # 0.0105 # 0.0089:
+        while expClock.getTime() < scene2Flip + scene2Duration - 0.010:  # 0.0105 # 0.0089:
             pass
+
+        # Rating scene change
+        win.flip()
+        messageResponseScreen.draw()
+        win.flip()
+        resp_screen_flip = expClock.getTime()
+
+        keyPress = event.waitKeys(keyList=responseKeys)
+
+        # Rating certain
+        slider.draw()
+        messageCertain.draw()
+        win.flip()
+        ratingCertain = event.waitKeys(keyList=responseKeysRating)
 
         # Add responses to handler
         exp_handler.addData('trial_start', trialStartFlip-exp_tick_ref)
-        exp_handler.addData('time_on_flip_occluder', occluderFlip-exp_tick_ref)
-        exp_handler.addData('time_on_flip_scene', sceneFlip-exp_tick_ref)
+        exp_handler.addData('time_on_flip_scene1', scene1Flip - exp_tick_ref)
+        exp_handler.addData('time_on_flip_occluder', occluderFlip - exp_tick_ref)
+        exp_handler.addData('time_on_flip_scene2', scene2Flip-exp_tick_ref)
+        exp_handler.addData('time_on_flip_response_screen', resp_screen_flip)
+
+        exp_handler.addData('yesno_detection', keyPress)
+        exp_handler.addData('rating_certain', ratingCertain)
 
         exp_handler.addData('block', blockNum)
         exp_handler.addData('trial', trialNum)
@@ -367,7 +470,7 @@ for block in expBlocks:
 
         exp_handler.nextEntry()
 
-        print('Finished, trial', trialNum, 'block', block)
+        print('Finished, trial', trialNum, block, 'block')
         checkQuit()  # interrupt experiment if key combination matches
 
         # Take a break if trial can be divided by breakTrial and if it is not the last trial in a block
